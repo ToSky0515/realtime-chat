@@ -1,0 +1,144 @@
+<!doctype html>
+
+<html>
+  <head>
+    <title>Simple Chat</title>
+    <!-- design -->
+    <link href="//maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" rel="stylesheet" id="bootstrap-css">
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+  
+    <!-- for emoji -->
+    <link rel="stylesheet" href="	https://cdnjs.cloudflare.com/ajax/libs/emojionearea/3.4.2/emojionearea.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/emojionearea/3.4.2/emojionearea.min.js"></script>
+
+    <link rel="stylesheet" type="text/css" href="/css/chat.css" />
+  </head>
+
+<ul id="messages"></ul>
+
+<div class="container h-80">
+<div class="row align-items-center h-100">
+   <div class="col-3 mx-auto">
+      <div class="text-center">
+            <img id="profile-img" class="rounded-circle profile-img-card" src="" />
+            <p id="profile-name" class="profile-name-card"></p>
+            <form  class="form-signin">
+               
+               <div  id = "error-container"></div>
+               <input id = "name"  value = "" class="form-control form-group" placeholder="Enter your name!" autofocus>
+               <input id = "room" type = "text" name = "name" value = "" class="form-control form-group" placeholder="Creat Room!" required autofocus>
+               <button id = "myBtn1" class="btn btn-lg btn-primary btn-block btn-signin" type="button" >enter</button>
+            </form>
+      </div>
+   </div>
+</div>
+</div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    var user;
+    var room;
+    var myBtn1 = document.getElementById('myBtn1')
+    var socket = io();
+    myBtn1.addEventListener("click", function(e) {
+      e.preventDefault();
+      var name = document.getElementById('name').value
+      var rm = document.getElementById('room').value
+      if (name) {
+         socket.emit('setUsername',{user:name , room:rm});
+         socket.emit('joinRoom', {user:name , room:rm});
+      }
+    });
+      //kapag ung user ay meron na 
+      socket.on('userExists', function(data) {
+         document.getElementById('error-container').innerHTML = data;
+         
+      });
+
+      socket.on('userSet', function(data) {
+          user = data.user;
+          room = data.room
+         document.body.innerHTML = '<h1 class="n1">CHAT</h1>\
+         <h3 id = "n11"class="n1">CHAT BUBBLES</h3>\
+         <ul id = "users"></ul>\
+         <div class = "list">\
+            <div class ="list_of_name">\
+            </div>\
+          </div>\
+         <div id = "out" class="chat"> \
+          <div class="yours messages" class = "d1"></div>\
+          <div class="mine messages"></div></div> \
+          <div id ="feedback"> </div>\
+          <input id="message" class = "input1" placeholder = "type here!"  /> \
+          <button id = "myBtn" class="big-button" >Send</button>';
+               
+          //view the room name
+          document.getElementById('n11').innerHTML = `Room Code : ${room}`;
+                 
+          var feedback = document.getElementById('feedback')
+          var input = document.getElementById('message')
+
+          //to make emoji work
+          $(document).ready(function(){
+              $("#message").emojioneArea();             
+            })
+          // someone typing...
+          input.addEventListener('keypress',function(){
+            socket.emit('typing', input);
+            ocket.emit("typing", {isTyping: input.value.length});
+          })
+          socket.on('typing',function(data){
+            feedback.innerHTML = `<p><em> ${data.name}  typing..</em><p>`
+          })
+          //stop typing
+          input.addEventListener("keyup", () =>  {
+            socket.emit("stopTyping", "");
+          });
+          socket.on("notifyStopTyping", () =>  {
+            feedback.innerText  =  "";
+
+        });
+          //getting the message
+          var myBtn = document.getElementById('myBtn')
+          myBtn.addEventListener("click", function(e) {
+            e.preventDefault();
+            var msg = document.getElementById('message').value;
+            //to make emoji inputbox clear
+            $("div.emojionearea-editor").data("emojioneArea").setText('');
+            document.getElementById('message').value = ''
+            document.getElementById('message').focus()
+            if(msg) {
+                socket.emit('msg', {message: msg, user: user ,room: room});
+                feedback.innerHTML =""
+            }
+          });
+      });
+      //add username to Dom
+      socket.on('roomUser',(data) => {
+        document.getElementById('users').innerHTML = `${data.map(user => `<li>${user.user}</li>`).join('')}`
+      });
+      // view of other
+      socket.on('newmsg', function(data) {
+          const div = document.createElement('div');
+          div.classList.add('yours');
+          div.innerHTML=  `<div class="message" id = "message-container"><b>  ${data.user} </b>${data.time} <div> ${data.message} </div></div> `
+          document.querySelector('.chat').appendChild(div);        
+          //automatic scroll down
+          var objDiv = document.getElementById("out");
+         objDiv.scrollTop = objDiv.scrollHeight;
+      })
+      //your view
+      socket.on('newmsg1', function(data) {
+          const div = document.createElement('div');
+          div.classList.add('mine');
+          div.innerHTML=  `<div class="message last" id = "message-container"><b>  ${data.user} </b>${data.time} <div>${data.message} </div></div> `
+          document.querySelector('.chat').appendChild(div);
+          
+          //automatic scroll do
+          var objDiv = document.getElementById("out");
+         objDiv.scrollTop = objDiv.scrollHeight;
+      })
+  </script>
+</html>
